@@ -6,6 +6,7 @@ use clap::{App, Arg};
 mod day1;
 mod day2;
 mod day3;
+mod day4;
 
 fn main() {
     let matches = App::new("Advent of Code 2019")
@@ -28,6 +29,9 @@ fn main() {
 
         "3a" => day3::a(),
         "3b" => day3::b(),
+
+        "4a" => day4::a(),
+        "4b" => day4::b(),
 
         _ => {
             eprintln!("Unrecognized day combination: {}", number);

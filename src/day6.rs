@@ -115,7 +115,11 @@ impl Graph {
 
         while a_id != b_id {
             a_id = *self.parents.get(&a_id).unwrap_or_else(|| {
-                panic!("Node {}, whose name is {}, has no parent!", a_id, self.id_to_name.get(&a_id).unwrap())
+                panic!(
+                    "Node {}, whose name is {}, has no parent!",
+                    a_id,
+                    self.id_to_name.get(&a_id).unwrap()
+                )
             });
             dist += 1;
 

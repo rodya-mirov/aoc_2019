@@ -4,13 +4,7 @@ fn get_ints() -> Vec<i64> {
     DATA_2A
         .split(',')
         .filter(|token| token.len() > 0)
-        .map(|token| {
-            token
-                .split_whitespace()
-                .collect::<String>()
-                .parse::<i64>()
-                .unwrap()
-        })
+        .map(|token| token.trim().parse::<i64>().unwrap())
         .collect::<Vec<i64>>()
 }
 

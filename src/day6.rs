@@ -14,6 +14,8 @@ struct GraphBuilder {
 struct Graph {
     // node name to node id
     name_to_id: HashMap<String, usize>,
+    // node id to node name, for debugging
+    id_to_name: HashMap<usize, String>,
     // node id to parent node id
     parents: HashMap<usize, usize>,
     // node id to orbital depth
@@ -41,8 +43,14 @@ impl GraphBuilder {
             self.get_orbital_depth(node_id);
         }
 
+        let mut id_to_name: HashMap<usize, String> = HashMap::new();
+        for (node_name, &node_id) in &self.name_to_id {
+            id_to_name.insert(node_id, node_name.to_string());
+        }
+
         Graph {
             name_to_id: self.name_to_id,
+            id_to_name,
             parents: self.parents,
             orbital_depth: self.orbital_depth,
         }
@@ -103,9 +111,12 @@ impl Graph {
             b_depth = *self.orbital_depth.get(&b_id).unwrap();
             dist += 1;
         }
+        assert_eq!(a_depth, b_depth);
 
         while a_id != b_id {
-            a_id = *self.parents.get(&a_id).unwrap();
+            a_id = *self.parents.get(&a_id).unwrap_or_else(|| {
+                panic!("Node {}, whose name is {}, has no parent!", a_id, self.id_to_name.get(&a_id).unwrap())
+            });
             dist += 1;
 
             b_id = *self.parents.get(&b_id).unwrap();
@@ -116,14 +127,14 @@ impl Graph {
     }
 }
 
-fn get_graph() -> Graph {
+fn get_graph(text: &str) -> Graph {
     let mut graph = GraphBuilder::new();
 
-    for row in DAY_6.lines() {
+    for row in text.lines() {
         let tokens = row.split(')').collect::<Vec<&str>>();
         assert_eq!(tokens.len(), 2);
-        let a = tokens[0];
-        let b = tokens[1];
+        let a = tokens[0].trim().to_string();
+        let b = tokens[1].trim().to_string();
 
         graph.add_parent_reln(b.to_string(), a.to_string());
     }
@@ -132,18 +143,47 @@ fn get_graph() -> Graph {
 }
 
 pub fn a() {
-    let graph = get_graph();
+    let graph = get_graph(DAY_6);
     let num_orbits = graph.get_num_trans_orbits();
     println!("6a: {}", num_orbits);
 }
 
 pub fn b() {
-    let graph = get_graph();
+    let graph = get_graph(DAY_6);
 
     let you = "YOU";
     let san = "SAN";
 
-    let dist = graph.orbital_distance(you, san);
+    // the -2 is for "moving to orbiting to the same thing" instead of moving you -> san
+    let dist = graph.orbital_distance(you, san) - 2;
 
     println!("6b: {}", dist);
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn simple_test() {
+        let sample = "COM)B
+        B)C
+        C)D
+        D)E
+        E)F
+        B)G
+        G)H
+        D)I
+        E)J
+        J)K
+        K)L
+        K)YOU
+        I)SAN";
+
+        let graph = get_graph(sample);
+
+        assert_eq!(0, graph.orbital_distance("YOU", "YOU"));
+
+        assert_eq!(6, graph.orbital_distance("YOU", "SAN"));
+    }
 }

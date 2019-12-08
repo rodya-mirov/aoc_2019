@@ -2,7 +2,7 @@ const DAY_5: &str = include_str!("resources/5a.txt");
 
 use crate::intcode::{str_to_ints, VecInput, VecOutput, VM};
 
-pub fn a() {
+fn do_a() -> i64 {
     let program = str_to_ints(DAY_5);
 
     let mut vm = VM::new(program);
@@ -17,10 +17,14 @@ pub fn a() {
         assert_eq!(output[i], 0);
     }
 
-    println!("5a: {}", output[output.len() - 1]);
+    output[output.len() - 1]
 }
 
-pub fn b() {
+pub fn a() {
+    println!("5a: {}", do_a());
+}
+
+fn do_b() -> i64 {
     let program = str_to_ints(DAY_5);
 
     let mut vm = VM::new(program);
@@ -35,5 +39,24 @@ pub fn b() {
         assert_eq!(output[i], 0);
     }
 
-    println!("5b: {}", output[output.len() - 1]);
+    output[output.len() - 1]
+}
+
+pub fn b() {
+    println!("5b: {}", do_b());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn check_5a() {
+        assert_eq!(do_a(), 16489636);
+    }
+
+    #[test]
+    pub fn check_5b() {
+        assert_eq!(do_b(), 9386583);
+    }
 }

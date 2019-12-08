@@ -9,6 +9,7 @@ pub trait VMOutput {
     fn do_output(&mut self, val: i64);
 }
 
+#[derive(Debug)]
 pub struct VecOutput {
     outputs: Vec<i64>,
 }
@@ -35,6 +36,7 @@ pub trait VMInput {
     fn get_input(&mut self) -> i64;
 }
 
+#[derive(Debug)]
 pub struct VecInput {
     inputs: Vec<i64>,
     counter: usize,
@@ -43,6 +45,10 @@ pub struct VecInput {
 impl VecInput {
     pub fn new(inputs: Vec<i64>) -> Self {
         VecInput { inputs, counter: 0 }
+    }
+
+    pub fn get_counter(&self) -> usize {
+        self.counter
     }
 }
 
@@ -75,8 +81,12 @@ impl VM {
 
     pub fn run<I: VMInput, O: VMOutput>(&mut self, i: &mut I, o: &mut O) {
         while !self.stopped {
+            // println!("Code state is now {:?}", self.code);
+
             let op_val = self.code[self.ip];
             let op = to_op(op_val);
+
+            // println!("At ip {}, got code {} which is op {:?}", self.ip, op_val, op);
 
             self.do_op(op, i, o);
         }
@@ -113,13 +123,15 @@ impl VM {
             }
             Op::TakeInput(mode) => {
                 let val = i.get_input();
+                // println!("Input: {}", val);
 
                 assert_eq!(mode, ParameterMode::Position);
-                let dest = force_usize(self.code[ip + 3]);
+                let dest = force_usize(self.code[ip + 1]);
                 self.code[dest] = val;
             }
             Op::DoOutput(mode) => {
                 let val = self.get_val(mode, self.code[ip + 1]);
+                // println!("Output: {}", val);
                 o.do_output(val);
             }
             Op::JumpIfTrue(mode_a, mode_b) => {

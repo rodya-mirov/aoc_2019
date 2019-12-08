@@ -2,7 +2,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 
 const DAY_7: &str = include_str!("resources/7a.txt");
 
-use crate::intcode::{str_to_ints, VMInput, VMOutput, VecInput, VecOutput, VM};
+use crate::intcode::{str_to_ints, RunResult, VM};
 
 pub struct MessageInput {
     pub rx: Receiver<i64>,
@@ -13,7 +13,9 @@ impl VMInput for MessageInput {
         // Blocks; so this will need to be on different threads
         // Note that if there is no response for 50 ms the thread explodes
         // dramatic but fine for a puzzle
-        self.rx.recv_timeout(std::time::Duration::from_millis(100)).unwrap()
+        self.rx
+            .recv_timeout(std::time::Duration::from_millis(100))
+            .unwrap()
     }
 }
 

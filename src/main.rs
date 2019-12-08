@@ -46,7 +46,6 @@ fn main() {
 
         "7a" => day7::a(),
         "7b" => day7::b(),
-
         _ => {
             eprintln!("Unrecognized day combination: {}", number);
             process::exit(1);

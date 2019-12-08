@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 pub fn str_to_ints(s: &str) -> Vec<i64> {
     s.trim()
         .split(',')
@@ -5,69 +7,14 @@ pub fn str_to_ints(s: &str) -> Vec<i64> {
         .collect()
 }
 
-pub trait VMOutput {
-    fn do_output(&mut self, val: i64);
-}
-
-#[derive(Debug)]
-pub struct VecOutput {
-    outputs: Vec<i64>,
-}
-
-impl VecOutput {
-    pub fn new() -> Self {
-        VecOutput {
-            outputs: Vec::new(),
-        }
-    }
-
-    pub fn to_vec(self) -> Vec<i64> {
-        self.outputs
-    }
-}
-
-impl VMOutput for VecOutput {
-    fn do_output(&mut self, val: i64) {
-        self.outputs.push(val);
-    }
-}
-
-pub trait VMInput {
-    fn get_input(&mut self) -> i64;
-}
-
-#[derive(Debug)]
-pub struct VecInput {
-    inputs: Vec<i64>,
-    counter: usize,
-}
-
-impl VecInput {
-    pub fn new(inputs: Vec<i64>) -> Self {
-        VecInput { inputs, counter: 0 }
-    }
-
-    pub fn get_counter(&self) -> usize {
-        self.counter
-    }
-}
-
-impl VMInput for VecInput {
-    fn get_input(&mut self) -> i64 {
-        if self.counter < self.inputs.len() {
-            let out = self.inputs[self.counter];
-            self.counter += 1;
-            out
-        } else {
-            panic!("Attempt to read off edge of the input")
-        }
-    }
-}
-
 pub struct VM {
     code: Vec<i64>,
     ip: usize,
     stopped: bool,
+    // available to use
+    stored_inputs: VecDeque<i64>,
+    // available to be polled
+    stored_outputs: VecDeque<i64>,
 }
 
 impl VM {
@@ -76,10 +23,12 @@ impl VM {
             code,
             ip: 0,
             stopped: false,
+            stored_inputs: VecDeque::new(),
+            stored_outputs: VecDeque::new(),
         }
     }
 
-    pub fn run<I: VMInput, O: VMOutput>(&mut self, i: &mut I, o: &mut O) {
+    pub fn run(&mut self) -> RunResult {
         while !self.stopped {
             // println!("Code state is now {:?}", self.code);
 
@@ -88,8 +37,35 @@ impl VM {
 
             // println!("At ip {}, got code {} which is op {:?}", self.ip, op_val, op);
 
-            self.do_op(op, i, o);
+            let op_result = self.do_op(op);
+
+            match op_result {
+                OpResult::Success => {
+                    self.ip = wrapping_add(self.ip, skip(op));
+                }
+                OpResult::NeedInput => {
+                    return RunResult::NeedInput;
+                }
+            }
         }
+
+        RunResult::Stopped
+    }
+
+    pub fn give_input(&mut self, input: i64) {
+        self.stored_inputs.push_back(input);
+    }
+
+    pub fn get_next_output(&mut self) -> Option<i64> {
+        self.stored_outputs.pop_front()
+    }
+
+    pub fn get_all_outputs(&mut self) -> Vec<i64> {
+        let mut out = Vec::with_capacity(self.stored_outputs.len());
+        while let Some(val) = self.stored_outputs.pop_front() {
+            out.push(val);
+        }
+        out
     }
 
     fn get_val(&self, mode: ParameterMode, val: i64) -> i64 {
@@ -102,7 +78,7 @@ impl VM {
         }
     }
 
-    fn do_op<I: VMInput, O: VMOutput>(&mut self, op: Op, i: &mut I, o: &mut O) {
+    fn do_op(&mut self, op: Op) -> OpResult {
         let ip = self.ip;
         match op {
             Op::Add(mode_a, mode_b, mode_c) => {
@@ -122,7 +98,11 @@ impl VM {
                 self.code[dest] = a * b;
             }
             Op::TakeInput(mode) => {
-                let val = i.get_input();
+                let val = self.stored_inputs.pop_front();
+                if val.is_none() {
+                    return OpResult::NeedInput;
+                }
+                let val = val.unwrap();
                 // println!("Input: {}", val);
 
                 assert_eq!(mode, ParameterMode::Position);
@@ -132,7 +112,7 @@ impl VM {
             Op::DoOutput(mode) => {
                 let val = self.get_val(mode, self.code[ip + 1]);
                 // println!("Output: {}", val);
-                o.do_output(val);
+                self.stored_outputs.push_back(val);
             }
             Op::JumpIfTrue(mode_a, mode_b) => {
                 let a = self.get_val(mode_a, self.code[ip + 1]);
@@ -175,8 +155,19 @@ impl VM {
             }
         }
 
-        self.ip = wrapping_add(self.ip, skip(op));
+        OpResult::Success
     }
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum RunResult {
+    Stopped,
+    NeedInput,
+}
+
+enum OpResult {
+    NeedInput,
+    Success,
 }
 
 fn wrapping_add(a: usize, b: usize) -> usize {

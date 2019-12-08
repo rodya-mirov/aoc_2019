@@ -1,17 +1,16 @@
 const DAY_5: &str = include_str!("resources/5a.txt");
 
-use crate::intcode::{str_to_ints, VecInput, VecOutput, VM};
+use crate::intcode::{str_to_ints, RunResult, VM};
 
 fn do_a() -> i64 {
     let program = str_to_ints(DAY_5);
 
     let mut vm = VM::new(program);
-    let mut input = VecInput::new(vec![1]);
-    let mut output = VecOutput::new();
+    vm.give_input(1);
 
-    vm.run(&mut input, &mut output);
+    assert_eq!(vm.run(), RunResult::Stopped);
 
-    let output = output.to_vec();
+    let output = vm.get_all_outputs();
 
     for i in 0..output.len() - 1 {
         assert_eq!(output[i], 0);
@@ -28,12 +27,11 @@ fn do_b() -> i64 {
     let program = str_to_ints(DAY_5);
 
     let mut vm = VM::new(program);
-    let mut input = VecInput::new(vec![5]);
-    let mut output = VecOutput::new();
+    vm.give_input(5);
 
-    vm.run(&mut input, &mut output);
+    assert_eq!(vm.run(), RunResult::Stopped);
 
-    let output = output.to_vec();
+    let output = vm.get_all_outputs();
 
     for i in 0..output.len() - 1 {
         assert_eq!(output[i], 0);

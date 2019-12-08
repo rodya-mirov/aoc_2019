@@ -28,6 +28,10 @@ impl VM {
         }
     }
 
+    pub fn is_stopped(&self) -> bool {
+        self.stopped
+    }
+
     pub fn run(&mut self) -> RunResult {
         while !self.stopped {
             // println!("Code state is now {:?}", self.code);

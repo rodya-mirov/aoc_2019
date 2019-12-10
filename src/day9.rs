@@ -28,8 +28,9 @@ pub fn b() {
 
     let outputs = vm.get_all_outputs();
     assert_eq!(outputs.len(), 1);
+    let out = outputs[0];
 
-    println!("9b: {}", outputs[0]);
+    println!("9b: {}", out);
 }
 
 #[cfg(test)]
@@ -39,32 +40,32 @@ mod tests {
     #[test]
     fn test_9a() {
         let code = str_to_ints(DAY_9);
-    
+
         let mut vm = VM::new(&code);
         vm.give_input(1);
-    
+
         let run_result = vm.run();
         assert_eq!(run_result, RunResult::Stopped);
-    
+
         let outputs = vm.get_all_outputs();
         assert_eq!(outputs.len(), 1);
-    
+
         assert_eq!(outputs[0], 2738720997);
     }
 
     #[test]
     fn test_9b() {
         let code = str_to_ints(DAY_9);
-    
+
         let mut vm = VM::new(&code);
         vm.give_input(2);
-    
+
         let run_result = vm.run();
         assert_eq!(run_result, RunResult::Stopped);
-    
+
         let outputs = vm.get_all_outputs();
         assert_eq!(outputs.len(), 1);
-    
+
         assert_eq!(outputs[0], 50894);
     }
 

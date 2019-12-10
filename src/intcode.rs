@@ -7,7 +7,37 @@ pub fn str_to_ints(s: &str) -> Vec<i64> {
         .collect()
 }
 
-type Memory = HashMap<usize, i64>;
+struct Memory {
+    start_len: usize,
+    start: Vec<i64>,
+    map: HashMap<usize, i64>,
+}
+
+impl Memory {
+    fn new(start: Vec<i64>) -> Self {
+        Memory {
+            start_len: start.len(),
+            start,
+            map: HashMap::new(),
+        }
+    }
+
+    fn get(&self, index: usize) -> i64 {
+        if index < self.start_len {
+            return self.start[index];
+        }
+
+        self.map.get(&index).copied().unwrap_or(0)
+    }
+
+    fn insert(&mut self, index: usize, val: i64) {
+        if index < self.start_len {
+            self.start[index] = val;
+        }
+
+        self.map.insert(index, val);
+    }
+}
 
 pub struct VM {
     code: Memory,
@@ -22,10 +52,7 @@ pub struct VM {
 
 impl VM {
     pub fn new(code: &[i64]) -> Self {
-        let mut memory = HashMap::with_capacity(code.len());
-        for (i, &entry) in code.into_iter().enumerate() {
-            memory.insert(i, entry);
-        }
+        let memory = Memory::new(code.into_iter().copied().collect());
         VM {
             code: memory,
             ip: 0,
@@ -44,7 +71,7 @@ impl VM {
         while !self.stopped {
             // println!("Code state is now {:?}", self.code);
 
-            let op_val = self.code.get(&self.ip).copied().unwrap_or(0);
+            let op_val = self.code.get(self.ip);
             let op = to_op(op_val);
 
             // println!("At ip {}, got code {} which is op {:?}", self.ip, op_val, op);
@@ -82,25 +109,24 @@ impl VM {
 
     fn get_val_from_memory(&self, mode: ParameterMode, ip_with_offset: usize) -> i64 {
         match mode {
-            ParameterMode::Immediate => self.code.get(&ip_with_offset).copied().unwrap_or(0),
+            ParameterMode::Immediate => self.code.get(ip_with_offset),
             ParameterMode::Position => {
-                let base_val = self.code.get(&ip_with_offset).copied().unwrap_or(0);
+                let base_val = self.code.get(ip_with_offset);
                 assert!(
                     base_val >= 0,
                     "Loaded value {} from code in positional mode, so must be nonnegative"
                 );
                 let actual_ind = base_val as usize;
-                self.code.get(&actual_ind).copied().unwrap_or(0)
+                self.code.get(actual_ind)
             }
             ParameterMode::Relative => {
-                let base_val =
-                    self.code.get(&ip_with_offset).copied().unwrap_or(0) + self.relative_base;
+                let base_val = self.code.get(ip_with_offset) + self.relative_base;
                 assert!(
                     base_val >= 0,
                     "Loaded value {} from code in relative mode, so must be nonnegative"
                 );
                 let actual_ind = base_val as usize;
-                self.code.get(&actual_ind).copied().unwrap_or(0)
+                self.code.get(actual_ind)
             }
         }
     }
@@ -111,7 +137,7 @@ impl VM {
                 panic!("Cannot set val where the index is in immediate mode")
             }
             ParameterMode::Position => {
-                let dest = self.code.get(&ip_with_offset).copied().unwrap_or(0);
+                let dest = self.code.get(ip_with_offset);
                 assert!(
                     dest >= 0,
                     "Got value {} from code in positional mode, so much be nonnegative"
@@ -120,8 +146,7 @@ impl VM {
                 self.code.insert(actual_ind, val);
             }
             ParameterMode::Relative => {
-                let dest =
-                    self.code.get(&ip_with_offset).copied().unwrap_or(0) + self.relative_base;
+                let dest = self.code.get(ip_with_offset) + self.relative_base;
                 assert!(
                     dest >= 0,
                     "Got value {} from code in relative mode, so much be nonnegative"

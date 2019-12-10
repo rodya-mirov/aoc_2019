@@ -5,7 +5,7 @@ use crate::intcode::{str_to_ints, RunResult, VM};
 fn do_a() -> i64 {
     let program = str_to_ints(DAY_5);
 
-    let mut vm = VM::new(program);
+    let mut vm = VM::new(&program);
     vm.give_input(1);
 
     assert_eq!(vm.run(), RunResult::Stopped);
@@ -26,7 +26,7 @@ pub fn a() {
 fn do_b() -> i64 {
     let program = str_to_ints(DAY_5);
 
-    let mut vm = VM::new(program);
+    let mut vm = VM::new(&program);
     vm.give_input(5);
 
     assert_eq!(vm.run(), RunResult::Stopped);

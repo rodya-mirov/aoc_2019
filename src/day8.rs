@@ -104,7 +104,11 @@ pub fn b() {
     let image = to_image(DAY_8, HEIGHT, WIDTH);
 
     fn merge(top: u8, bot: u8) -> u8 {
-        if top == 2 { bot } else { top }
+        if top == 2 {
+            bot
+        } else {
+            top
+        }
     }
 
     let mut final_layer = [[2; WIDTH]; HEIGHT];

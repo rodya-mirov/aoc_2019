@@ -5,7 +5,6 @@ use crate::intcode::{str_to_ints, RunResult, VM};
 fn run_amps_serial(code: &[i64], phases: [i64; 5]) -> i64 {
     let mut out_so_far = 0;
     for &phase in &phases {
-        let code: Vec<i64> = code.iter().copied().collect();
         // println!("Amp code: {:?}", code);
         let mut amp = VM::new(code);
         amp.give_input(phase);
@@ -73,7 +72,7 @@ fn do_amps_feedback(code: &[i64], phases: [i64; 5]) -> i64 {
 
     let mut amps = Vec::with_capacity(5);
     for &phase in &phases {
-        let mut amp = VM::new(code.iter().copied().collect());
+        let mut amp = VM::new(code);
         amp.give_input(phase);
         amps.push(amp);
     }

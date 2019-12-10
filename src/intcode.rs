@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 pub fn str_to_ints(s: &str) -> Vec<i64> {
     s.trim()
@@ -7,9 +7,12 @@ pub fn str_to_ints(s: &str) -> Vec<i64> {
         .collect()
 }
 
+type Memory = HashMap<usize, i64>;
+
 pub struct VM {
-    code: Vec<i64>,
+    code: Memory,
     ip: usize,
+    relative_base: i64,
     stopped: bool,
     // available to use
     stored_inputs: VecDeque<i64>,
@@ -18,11 +21,16 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new(code: Vec<i64>) -> Self {
+    pub fn new(code: &[i64]) -> Self {
+        let mut memory = HashMap::with_capacity(code.len());
+        for (i, &entry) in code.into_iter().enumerate() {
+            memory.insert(i, entry);
+        }
         VM {
-            code,
+            code: memory,
             ip: 0,
             stopped: false,
+            relative_base: 0,
             stored_inputs: VecDeque::new(),
             stored_outputs: VecDeque::new(),
         }
@@ -36,7 +44,7 @@ impl VM {
         while !self.stopped {
             // println!("Code state is now {:?}", self.code);
 
-            let op_val = self.code[self.ip];
+            let op_val = self.code.get(&self.ip).copied().unwrap_or(0);
             let op = to_op(op_val);
 
             // println!("At ip {}, got code {} which is op {:?}", self.ip, op_val, op);
@@ -72,13 +80,55 @@ impl VM {
         out
     }
 
-    fn get_val(&self, mode: ParameterMode, val: i64) -> i64 {
+    fn get_val_from_memory(&self, mode: ParameterMode, ip_with_offset: usize) -> i64 {
         match mode {
+            ParameterMode::Immediate => self.code.get(&ip_with_offset).copied().unwrap_or(0),
             ParameterMode::Position => {
-                let pos = force_usize(val);
-                self.code[pos]
+                let base_val = self.code.get(&ip_with_offset).copied().unwrap_or(0);
+                assert!(
+                    base_val >= 0,
+                    "Loaded value {} from code in positional mode, so must be nonnegative"
+                );
+                let actual_ind = base_val as usize;
+                self.code.get(&actual_ind).copied().unwrap_or(0)
             }
-            ParameterMode::Immediate => val,
+            ParameterMode::Relative => {
+                let base_val =
+                    self.code.get(&ip_with_offset).copied().unwrap_or(0) + self.relative_base;
+                assert!(
+                    base_val >= 0,
+                    "Loaded value {} from code in relative mode, so must be nonnegative"
+                );
+                let actual_ind = base_val as usize;
+                self.code.get(&actual_ind).copied().unwrap_or(0)
+            }
+        }
+    }
+
+    fn set_val_in_memory(&mut self, mode: ParameterMode, ip_with_offset: usize, val: i64) {
+        match mode {
+            ParameterMode::Immediate => {
+                panic!("Cannot set val where the index is in immediate mode")
+            }
+            ParameterMode::Position => {
+                let dest = self.code.get(&ip_with_offset).copied().unwrap_or(0);
+                assert!(
+                    dest >= 0,
+                    "Got value {} from code in positional mode, so much be nonnegative"
+                );
+                let actual_ind = dest as usize;
+                self.code.insert(actual_ind, val);
+            }
+            ParameterMode::Relative => {
+                let dest =
+                    self.code.get(&ip_with_offset).copied().unwrap_or(0) + self.relative_base;
+                assert!(
+                    dest >= 0,
+                    "Got value {} from code in relative mode, so much be nonnegative"
+                );
+                let actual_ind = dest as usize;
+                self.code.insert(actual_ind, val);
+            }
         }
     }
 
@@ -86,20 +136,16 @@ impl VM {
         let ip = self.ip;
         match op {
             Op::Add(mode_a, mode_b, mode_c) => {
-                let a = self.get_val(mode_a, self.code[ip + 1]);
-                let b = self.get_val(mode_b, self.code[ip + 2]);
+                let a = self.get_val_from_memory(mode_a, ip + 1);
+                let b = self.get_val_from_memory(mode_b, ip + 2);
 
-                assert_eq!(mode_c, ParameterMode::Position);
-                let dest = force_usize(self.code[ip + 3]);
-                self.code[dest] = a + b;
+                self.set_val_in_memory(mode_c, ip + 3, a + b);
             }
             Op::Multiply(mode_a, mode_b, mode_c) => {
-                let a = self.get_val(mode_a, self.code[ip + 1]);
-                let b = self.get_val(mode_b, self.code[ip + 2]);
+                let a = self.get_val_from_memory(mode_a, ip + 1);
+                let b = self.get_val_from_memory(mode_b, ip + 2);
 
-                assert_eq!(mode_c, ParameterMode::Position);
-                let dest = force_usize(self.code[ip + 3]);
-                self.code[dest] = a * b;
+                self.set_val_in_memory(mode_c, ip + 3, a * b);
             }
             Op::TakeInput(mode) => {
                 let val = self.stored_inputs.pop_front();
@@ -109,50 +155,52 @@ impl VM {
                 let val = val.unwrap();
                 // println!("Input: {}", val);
 
-                assert_eq!(mode, ParameterMode::Position);
-                let dest = force_usize(self.code[ip + 1]);
-                self.code[dest] = val;
+                self.set_val_in_memory(mode, ip + 1, val);
             }
             Op::DoOutput(mode) => {
-                let val = self.get_val(mode, self.code[ip + 1]);
+                let val = self.get_val_from_memory(mode, ip + 1);
                 // println!("Output: {}", val);
                 self.stored_outputs.push_back(val);
             }
             Op::JumpIfTrue(mode_a, mode_b) => {
-                let a = self.get_val(mode_a, self.code[ip + 1]);
+                let a = self.get_val_from_memory(mode_a, ip + 1);
                 if a != 0 {
                     // NB: we subtract two from the val because we're going to add
                     // it back at the end (it's a little janky but the alternative is to
                     // copy paste a lot of "increment self.ip" code
-                    let b = self.get_val(mode_b, self.code[ip + 2]);
+                    let b = self.get_val_from_memory(mode_b, ip + 2);
                     self.ip = wrapping_sub(force_usize(b), 3);
                 }
             }
             Op::JumpIfFalse(mode_a, mode_b) => {
-                let a = self.get_val(mode_a, self.code[ip + 1]);
+                let a = self.get_val_from_memory(mode_a, ip + 1);
                 if a == 0 {
                     // NB: we subtract two from the val because we're going to add
                     // it back at the end (it's a little janky but the alternative is to
                     // copy paste a lot of "increment self.ip" code
-                    let b = self.get_val(mode_b, self.code[ip + 2]);
+                    let b = self.get_val_from_memory(mode_b, ip + 2);
                     self.ip = wrapping_sub(force_usize(b), 3);
                 }
             }
             Op::LessThan(mode_a, mode_b, mode_c) => {
-                let a = self.get_val(mode_a, self.code[ip + 1]);
-                let b = self.get_val(mode_b, self.code[ip + 2]);
+                let a = self.get_val_from_memory(mode_a, ip + 1);
+                let b = self.get_val_from_memory(mode_b, ip + 2);
 
-                assert_eq!(mode_c, ParameterMode::Position);
-                let dest = force_usize(self.code[ip + 3]);
-                self.code[dest] = if a < b { 1 } else { 0 };
+                let val = if a < b { 1 } else { 0 };
+
+                self.set_val_in_memory(mode_c, ip + 3, val);
             }
             Op::Equals(mode_a, mode_b, mode_c) => {
-                let a = self.get_val(mode_a, self.code[ip + 1]);
-                let b = self.get_val(mode_b, self.code[ip + 2]);
+                let a = self.get_val_from_memory(mode_a, ip + 1);
+                let b = self.get_val_from_memory(mode_b, ip + 2);
 
-                assert_eq!(mode_c, ParameterMode::Position);
-                let dest = force_usize(self.code[ip + 3]);
-                self.code[dest] = if a == b { 1 } else { 0 };
+                let val = if a == b { 1 } else { 0 };
+
+                self.set_val_in_memory(mode_c, ip + 3, val);
+            }
+            Op::AdjustRelBase(mode) => {
+                let rb_adj = self.get_val_from_memory(mode, ip + 1);
+                self.relative_base += rb_adj;
             }
             Op::Stop => {
                 self.stopped = true;
@@ -195,12 +243,14 @@ fn force_usize(val: i64) -> usize {
 pub enum ParameterMode {
     Position,
     Immediate,
+    Relative,
 }
 
 fn to_mode(mode: usize) -> ParameterMode {
     match mode {
         0 => ParameterMode::Position,
         1 => ParameterMode::Immediate,
+        2 => ParameterMode::Relative,
         _ => panic!("Unrecognized mode {}", mode),
     }
 }
@@ -217,6 +267,7 @@ pub enum Op {
     JumpIfFalse(ParameterMode, ParameterMode),
     LessThan(ParameterMode, ParameterMode, ParameterMode),
     Equals(ParameterMode, ParameterMode, ParameterMode),
+    AdjustRelBase(ParameterMode),
     Stop,
 }
 
@@ -287,6 +338,11 @@ fn to_op(op_val: i64) -> Op {
 
             Equals(mode_a, mode_b, mode_c)
         }
+        9 => {
+            let mode_a = next_mode(&mut op_val);
+
+            AdjustRelBase(mode_a)
+        }
         99 => Stop,
         _ => panic!("Unrecognized op code {}", simple_op),
     }
@@ -304,6 +360,7 @@ fn skip(op: Op) -> usize {
         JumpIfFalse(_, _) => 3,
         LessThan(_, _, _) => 4,
         Equals(_, _, _) => 4,
+        AdjustRelBase(_) => 2,
         Stop => 1,
     }
 }

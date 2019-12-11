@@ -5,16 +5,17 @@ use clap::{App, Arg};
 
 mod intcode;
 
-mod day1;
+mod day01;
+mod day02;
+mod day03;
+mod day04;
+mod day05;
+mod day06;
+mod day07;
+mod day08;
+mod day09;
 mod day10;
-mod day2;
-mod day3;
-mod day4;
-mod day5;
-mod day6;
-mod day7;
-mod day8;
-mod day9;
+mod day11;
 
 fn main() {
     let matches = App::new("Advent of Code 2019")
@@ -29,35 +30,38 @@ fn main() {
     let start = Instant::now();
 
     match number {
-        "1a" => day1::a(),
-        "1b" => day1::b(),
+        "1a" => day01::a(),
+        "1b" => day01::b(),
 
-        "2a" => day2::a(),
-        "2b" => day2::b(),
+        "2a" => day02::a(),
+        "2b" => day02::b(),
 
-        "3a" => day3::a(),
-        "3b" => day3::b(),
+        "3a" => day03::a(),
+        "3b" => day03::b(),
 
-        "4a" => day4::a(),
-        "4b" => day4::b(),
+        "4a" => day04::a(),
+        "4b" => day04::b(),
 
-        "5a" => day5::a(),
-        "5b" => day5::b(),
+        "5a" => day05::a(),
+        "5b" => day05::b(),
 
-        "6a" => day6::a(),
-        "6b" => day6::b(),
+        "6a" => day06::a(),
+        "6b" => day06::b(),
 
-        "7a" => day7::a(),
-        "7b" => day7::b(),
+        "7a" => day07::a(),
+        "7b" => day07::b(),
 
-        "8a" => day8::a(),
-        "8b" => day8::b(),
+        "8a" => day08::a(),
+        "8b" => day08::b(),
 
-        "9a" => day9::a(),
-        "9b" => day9::b(),
+        "9a" => day09::a(),
+        "9b" => day09::b(),
 
         "10a" => day10::a(),
         "10b" => day10::b(),
+
+        "11a" => day11::a(),
+        "11b" => day11::b(),
 
         _ => {
             eprintln!("Unrecognized day combination: {}", number);

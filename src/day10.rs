@@ -289,7 +289,7 @@ pub fn b() {
         if can_see.is_empty() {
             panic!("Reached 'no visibility' before emptying field.");
         }
-        
+
         let can_see: Vec<(usize, usize)> = can_see
             .into_iter()
             .map(|los| {

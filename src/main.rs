@@ -6,6 +6,7 @@ use clap::{App, Arg};
 mod intcode;
 
 mod day1;
+mod day10;
 mod day2;
 mod day3;
 mod day4;
@@ -54,6 +55,9 @@ fn main() {
 
         "9a" => day9::a(),
         "9b" => day9::b(),
+
+        "10a" => day10::a(),
+        "10b" => day10::b(),
 
         _ => {
             eprintln!("Unrecognized day combination: {}", number);

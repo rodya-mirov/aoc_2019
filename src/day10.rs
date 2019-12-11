@@ -285,13 +285,11 @@ pub fn b() {
     let mut deleted: Vec<(usize, usize)> = Vec::new();
 
     while !field.locs.is_empty() {
-        println!("Iteration: have {} remaining", field.locs.len());
         let can_see = field.all_vis(my_x, my_y);
         if can_see.is_empty() {
             panic!("Reached 'no visibility' before emptying field.");
         }
-        println!("  Found {} items: {:?}", can_see.len(), can_see);
-
+        
         let can_see: Vec<(usize, usize)> = can_see
             .into_iter()
             .map(|los| {
@@ -305,6 +303,7 @@ pub fn b() {
             deleted.push((*x, *y));
         }
 
+        // TODO: This is bad use of data structures but I'm tired and it runs in 24ms and I'm going to bed
         field.locs.retain(|tup| !can_see.contains(tup));
     }
 

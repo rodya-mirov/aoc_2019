@@ -2,34 +2,128 @@ use regex::Regex;
 
 const DAY_12: &str = include_str!("resources/12a.txt");
 
-fn str_to_world(state: &str) -> WorldState {
-    let moons: Vec<MoonData> = state.trim().lines().map(str_to_moon).collect();
-    WorldState {
-        moons: [moons[0], moons[1], moons[2], moons[3]],
+fn str_to_world_dims(state: &str) -> WorldStateDims {
+    #[derive(Copy, Clone)]
+    struct IntVec3 {
+        x: i64,
+        y: i64,
+        z: i64,
     }
-}
 
-fn str_to_moon(moon_state: &str) -> MoonData {
     let re = Regex::new(r"<x=(.*), y=(.*), z=(.*)>").unwrap();
+    let mut moon_positions = Vec::new();
 
-    for cap in re.captures_iter(moon_state.trim()) {
-        let pos = [
-            cap[1].parse().unwrap(),
-            cap[2].parse().unwrap(),
-            cap[3].parse().unwrap(),
-        ];
+    for line in state.trim().lines() {
+        for cap in re.captures_iter(line.trim()) {
+            let pos = IntVec3 {
+                x: cap[1].parse().unwrap(),
+                y: cap[2].parse().unwrap(),
+                z: cap[3].parse().unwrap(),
+            };
 
-        let vel = [0, 0, 0];
-
-        return MoonData { pos, vel };
+            moon_positions.push(pos);
+            break;
+        }
     }
 
-    panic!("No matches for moon string {}", moon_state);
+    assert_eq!(moon_positions.len(), 4);
+    let moon_positions = [
+        moon_positions[0],
+        moon_positions[1],
+        moon_positions[2],
+        moon_positions[3],
+    ];
+
+    fn make_dim<F: Fn(IntVec3) -> i64>(moons_pos: [IntVec3; 4], f: F) -> WorldStateDim {
+        WorldStateDim {
+            moons: [
+                MoonStateDim {
+                    pos: f(moons_pos[0]),
+                    vel: 0,
+                },
+                MoonStateDim {
+                    pos: f(moons_pos[1]),
+                    vel: 0,
+                },
+                MoonStateDim {
+                    pos: f(moons_pos[2]),
+                    vel: 0,
+                },
+                MoonStateDim {
+                    pos: f(moons_pos[3]),
+                    vel: 0,
+                },
+            ],
+        }
+    }
+
+    WorldStateDims {
+        x: make_dim(moon_positions, |vec| vec.x),
+        y: make_dim(moon_positions, |vec| vec.y),
+        z: make_dim(moon_positions, |vec| vec.z),
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Hash)]
-struct WorldState {
-    moons: [MoonData; 4],
+struct WorldStateDims {
+    x: WorldStateDim,
+    y: WorldStateDim,
+    z: WorldStateDim,
+}
+
+impl WorldStateDims {
+    fn update(&mut self) {
+        self.x.update();
+        self.y.update();
+        self.z.update();
+    }
+
+    fn total_energy(&self) -> i64 {
+        let get_potential = |moon_ind: usize| -> i64 {
+            self.x.moons[moon_ind].pos.abs()
+                + self.y.moons[moon_ind].pos.abs()
+                + self.z.moons[moon_ind].pos.abs()
+        };
+
+        let get_kinetic = |moon_ind: usize| -> i64 {
+            self.x.moons[moon_ind].vel.abs()
+                + self.y.moons[moon_ind].vel.abs()
+                + self.z.moons[moon_ind].vel.abs()
+        };
+
+        let get_energy =
+            |moon_ind: usize| -> i64 { get_potential(moon_ind) * get_kinetic(moon_ind) };
+
+        (0..4).map(get_energy).sum()
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash)]
+struct WorldStateDim {
+    moons: [MoonStateDim; 4],
+}
+
+impl WorldStateDim {
+    fn update(&mut self) {
+        for i in 0..4 {
+            for j in i + 1..4 {
+                let pos_diff = self.moons[i].pos - self.moons[j].pos;
+                let vel_delta = sign(pos_diff);
+                self.moons[i].vel -= vel_delta;
+                self.moons[j].vel += vel_delta;
+            }
+        }
+
+        for i in 0..4 {
+            self.moons[i].pos += self.moons[i].vel;
+        }
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash)]
+struct MoonStateDim {
+    pos: i64,
+    vel: i64,
 }
 
 fn sign(val: i64) -> i64 {
@@ -42,79 +136,8 @@ fn sign(val: i64) -> i64 {
     }
 }
 
-fn sign_arr(vals: Vec3) -> Vec3 {
-    [sign(vals[0]), sign(vals[1]), sign(vals[2])]
-}
-
-fn diff(a: Vec3, b: Vec3) -> Vec3 {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-
-fn plus(a: Vec3, b: Vec3) -> Vec3 {
-    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
-}
-
-fn abs_total(v: Vec3) -> i64 {
-    v[0].abs() + v[1].abs() + v[2].abs()
-}
-
-impl WorldState {
-    fn update(&mut self) {
-        let num_moons = self.moons.len();
-
-        // update vels due to gravity
-        for i in 0..num_moons {
-            for j in i + 1..num_moons {
-                // using copy instead of figuring out how to manage mut refs
-                let mut moon_a = self.moons[i];
-                let mut moon_b = self.moons[j];
-
-                let diff_sign = sign_arr(diff(moon_a.pos, moon_b.pos));
-                for i in 0..3 {
-                    moon_a.vel[i] -= diff_sign[i];
-                    moon_b.vel[i] += diff_sign[i];
-                }
-
-                self.moons[i] = moon_a;
-                self.moons[j] = moon_b;
-            }
-        }
-
-        // update pos due to vel
-        for i in 0..num_moons {
-            let moon = self.moons[i];
-            self.moons[i].pos = plus(moon.pos, moon.vel);
-        }
-    }
-
-    fn total_energy(&self) -> i64 {
-        self.moons
-            .iter()
-            .map(|moon| moon.potential() * moon.kinetic())
-            .sum()
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-struct MoonData {
-    pos: Vec3,
-    vel: Vec3,
-}
-
-impl MoonData {
-    fn potential(&self) -> i64 {
-        abs_total(self.pos)
-    }
-
-    fn kinetic(&self) -> i64 {
-        abs_total(self.vel)
-    }
-}
-
-type Vec3 = [i64; 3];
-
 fn do_total_energy(setup: &str, num_steps: usize) -> i64 {
-    let mut world = str_to_world(setup);
+    let mut world = str_to_world_dims(setup);
 
     for _ in 0..num_steps {
         world.update();

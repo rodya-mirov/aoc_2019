@@ -113,19 +113,35 @@ impl MoonData {
 
 type Vec3 = [i64; 3];
 
-pub fn a() {
-    let mut world = str_to_world(DAY_12);
-    const NUM_STEPS: usize = 1_000;
+fn do_total_energy(setup: &str, num_steps: usize) -> i64 {
+    let mut world = str_to_world(setup);
 
-    for _ in 0..NUM_STEPS {
+    for _ in 0..num_steps {
         world.update();
     }
 
-    let total = world.total_energy();
+    world.total_energy()
+}
+
+pub fn a() {
+    let total = do_total_energy(DAY_12, 1_000);
 
     println!("12a: {}", total);
 }
 
 pub fn b() {
     unimplemented!()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_12a() {
+        let actual = do_total_energy(DAY_12, 1_000);
+        let expected = 14907;
+
+        assert_eq!(actual, expected);
+    }
 }

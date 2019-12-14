@@ -187,7 +187,7 @@ pub fn b() {
 
     // I'm not sure if it's possible for this to happen, but it doesn't happen for this input
     // and I don't want to think about it, so ...
-    if x_phase.offset != 0 || y_phase.offset !=0 || z_phase.offset != 0 {
+    if x_phase.offset != 0 || y_phase.offset != 0 || z_phase.offset != 0 {
         panic!("I don't really know what to do with nonzero offsets because I'm lazy");
     }
 

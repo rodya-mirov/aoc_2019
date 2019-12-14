@@ -152,8 +152,50 @@ pub fn a() {
     println!("12a: {}", total);
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+struct RepeatPhase {
+    offset: usize,
+    period: usize,
+}
+
+fn get_repeat_phase(mut dim: WorldStateDim) -> RepeatPhase {
+    use std::collections::HashMap;
+
+    let mut seen: HashMap<WorldStateDim, usize> = HashMap::new();
+    let mut step = 0;
+
+    loop {
+        if let Some(old_ind) = seen.insert(dim, step) {
+            let offset = old_ind;
+            let period = step - old_ind;
+            return RepeatPhase { offset, period };
+        }
+        step += 1;
+        dim.update();
+    }
+}
+
 pub fn b() {
-    unimplemented!()
+    // pretty embarassed to pull in a dependency for something this simple but i can't be arsed
+    use num::integer::lcm;
+
+    let world = str_to_world_dims(DAY_12);
+
+    let x_phase = get_repeat_phase(world.x);
+    let y_phase = get_repeat_phase(world.y);
+    let z_phase = get_repeat_phase(world.z);
+
+    // I'm not sure if it's possible for this to happen, but it doesn't happen for this input
+    // and I don't want to think about it, so ...
+    if x_phase.offset != 0 || y_phase.offset !=0 || z_phase.offset != 0 {
+        panic!("I don't really know what to do with nonzero offsets because I'm lazy");
+    }
+
+    let (x, y, z) = (x_phase.period, y_phase.period, z_phase.period);
+
+    let period = lcm(lcm(x, y), z);
+
+    println!("12b: {}", period);
 }
 
 #[cfg(test)]

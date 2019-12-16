@@ -155,7 +155,7 @@ fn ore_for_fuel(reactions: &Reactions, goal_elt: &str, goal_amt: i64) -> i64 {
 
     // Note: this is super sloppy without a topological sort but at this data scale I just
     // don't care ... I feel kind of guilty, though.
-    
+
     loop {
         // println!("Current state: {:?}", resources);
 

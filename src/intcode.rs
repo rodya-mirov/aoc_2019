@@ -7,6 +7,7 @@ pub fn str_to_ints(s: &str) -> Vec<i64> {
         .collect()
 }
 
+#[derive(Clone)]
 struct Memory {
     start_len: usize,
     start: Vec<i64>,
@@ -39,6 +40,7 @@ impl Memory {
     }
 }
 
+#[derive(Clone)]
 pub struct VM {
     code: Memory,
     ip: usize,

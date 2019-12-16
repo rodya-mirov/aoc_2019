@@ -19,6 +19,8 @@ mod day11;
 mod day12;
 mod day13;
 mod day14;
+mod day15;
+mod day16;
 
 fn main() {
     let matches = App::new("Advent of Code 2019")
@@ -74,6 +76,12 @@ fn main() {
 
         "14a" => day14::a(),
         "14b" => day14::b(),
+
+        "15a" => day15::a(),
+        "15b" => day15::b(),
+
+        "16a" => day16::a(),
+        "16b" => day16::b(),
 
         _ => {
             eprintln!("Unrecognized day combination: {}", number);
